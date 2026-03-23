@@ -38,7 +38,7 @@ Uma página de login moderna e responsiva para uma plataforma de jogos, com desi
 
 ```
 pasta certa/
-├── pagin.html          # Página principal (HTML)
+├── index.html          # Página principal (HTML)
 ├── style.css           # Estilos visuais
 ├── script.js           # Lógica JavaScript + Firebase Auth
 ├── firebase-config.js  # Configuração do Firebase
@@ -65,8 +65,8 @@ pasta certa/
 
 1. Abra a pasta no **VS Code**
 2. Instale a extensão **Live Server**
-3. Clique com botão direito em `pagin.html` → **"Open with Live Server"**
-4. Acesse `http://127.0.0.1:5500/pagin.html`
+3. Clique com botão direito em `index.html` → **"Open with Live Server"**
+4. Acesse `http://127.0.0.1:5500/index.html`
 
 > ⚠️ **Importante**: Firebase não funciona abrindo o HTML como arquivo (`file:///`). Use sempre o Live Server.
 
