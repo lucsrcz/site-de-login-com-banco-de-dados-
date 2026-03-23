@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cabun â€” Login</title>
-  <meta name="description" content="Cabun - Sua plataforma de jogos. FaÃ§a login ou crie sua conta." />
+  <title>Cabun — Login</title>
+  <meta name="description" content="Cabun - Sua plataforma de jogos. Faça login ou crie sua conta." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -29,7 +29,7 @@
     <!-- Logo -->
     <div class="logo">
       <h1>CABUN</h1>
-      <p>ðŸŽ® Plataforma de Jogos</p>
+      <p>🎮 Plataforma de Jogos</p>
     </div>
 
     <!-- Card -->
@@ -51,7 +51,7 @@
         <div class="input-group">
           <label for="loginPassword">Senha</label>
           <div class="input-wrapper">
-            <input type="password" id="loginPassword" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autocomplete="current-password" />
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)" aria-label="Mostrar senha">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -79,17 +79,17 @@
         </div>
 
         <div class="form-footer">
-          NÃ£o tem uma conta? <button class="link-btn" onclick="showSection('registerForm')">Criar conta</button>
+          Não tem uma conta? <button class="link-btn" onclick="showSection('registerForm')">Criar conta</button>
         </div>
       </div>
 
       <!-- ===== REGISTER FORM ===== -->
       <div class="form-section" id="registerForm">
         <h2 class="form-title">Criar conta</h2>
-        <p class="form-subtitle">Junte-se Ã  comunidade gamer do Cabun</p>
+        <p class="form-subtitle">Junte-se à comunidade gamer do Cabun</p>
 
         <div class="input-group">
-          <label for="registerName">Nome de usuÃ¡rio</label>
+          <label for="registerName">Nome de usuário</label>
           <div class="input-wrapper">
             <input type="text" id="registerName" placeholder="SeuNickname" autocomplete="username" />
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -107,7 +107,7 @@
         <div class="input-group">
           <label for="registerPassword">Senha</label>
           <div class="input-wrapper">
-            <input type="password" id="registerPassword" placeholder="MÃ­n. 8 caracteres" autocomplete="new-password" />
+            <input type="password" id="registerPassword" placeholder="Mín. 8 caracteres" autocomplete="new-password" />
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)" aria-label="Mostrar senha">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -129,14 +129,14 @@
         <button class="btn-primary" id="btnRegister" style="margin-top: 8px;" onclick="handleRegister()">Criar conta</button>
 
         <div class="form-footer">
-          JÃ¡ tem uma conta? <button class="link-btn" onclick="showSection('loginForm')">Fazer login</button>
+          Já tem uma conta? <button class="link-btn" onclick="showSection('loginForm')">Fazer login</button>
         </div>
       </div>
 
       <!-- ===== FORGOT PASSWORD FORM ===== -->
       <div class="form-section" id="forgotForm">
         <h2 class="form-title">Esqueceu a senha?</h2>
-        <p class="form-subtitle">Informe seu e-mail e enviaremos um link de recuperaÃ§Ã£o</p>
+        <p class="form-subtitle">Informe seu e-mail e enviaremos um link de recuperação</p>
 
         <div class="input-group">
           <label for="forgotEmail">E-mail</label>
@@ -146,7 +146,7 @@
           </div>
         </div>
 
-        <button class="btn-primary" id="btnForgot" style="margin-top: 8px;" onclick="handleForgot()">Enviar link de recuperaÃ§Ã£o</button>
+        <button class="btn-primary" id="btnForgot" style="margin-top: 8px;" onclick="handleForgot()">Enviar link de recuperação</button>
 
         <div class="form-footer" style="margin-top: 20px;">
           Lembrou a senha? <button class="link-btn" onclick="showSection('loginForm')">Voltar ao login</button>
@@ -160,7 +160,7 @@
   <div class="login-container" id="loggedInContainer" style="display: none;">
     <div class="logo">
       <h1>CABUN</h1>
-      <p>ðŸŽ® Plataforma de Jogos</p>
+      <p>🎮 Plataforma de Jogos</p>
     </div>
 
     <div class="card logged-in-card">
@@ -175,24 +175,24 @@
 
       <div class="logged-in-stats">
         <div class="stat-item">
-          <span class="stat-icon">ðŸ†</span>
+          <span class="stat-icon">🏆</span>
           <span class="stat-value">0</span>
           <span class="stat-label">Conquistas</span>
         </div>
         <div class="stat-item">
-          <span class="stat-icon">ðŸŽ®</span>
+          <span class="stat-icon">🎮</span>
           <span class="stat-value">0</span>
           <span class="stat-label">Jogos</span>
         </div>
         <div class="stat-item">
-          <span class="stat-icon">â­</span>
+          <span class="stat-icon">⭐</span>
           <span class="stat-value">0</span>
-          <span class="stat-label">NÃ­vel</span>
+          <span class="stat-label">Nível</span>
         </div>
       </div>
 
       <div class="logged-in-message">
-        <p>ðŸŽ‰ VocÃª estÃ¡ conectado! Sua conta estÃ¡ pronta.</p>
+        <p>🎉 Você está conectado! Sua conta está pronta.</p>
       </div>
 
       <button class="btn-primary btn-logout" onclick="handleLogout()">
@@ -206,4 +206,3 @@
 
 </body>
 </html>
-

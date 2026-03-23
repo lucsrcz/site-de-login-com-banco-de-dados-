@@ -1,4 +1,4 @@
-﻿import { auth, db, googleProvider, githubProvider } from './firebase-config.js';
+import { auth, db, googleProvider, githubProvider } from './firebase-config.js';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -80,18 +80,18 @@ function setLoading(buttonEl, loading) {
 // ===== FIREBASE ERROR MESSAGES (PT-BR) =====
 function getFirebaseErrorMessage(errorCode) {
   const messages = {
-    'auth/email-already-in-use': 'Este e-mail jÃ¡ estÃ¡ cadastrado.',
-    'auth/invalid-email': 'E-mail invÃ¡lido.',
-    'auth/weak-password': 'A senha deve ter no mÃ­nimo 6 caracteres.',
-    'auth/user-not-found': 'UsuÃ¡rio nÃ£o encontrado.',
+    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
+    'auth/invalid-email': 'E-mail inválido.',
+    'auth/weak-password': 'A senha deve ter no mínimo 6 caracteres.',
+    'auth/user-not-found': 'Usuário não encontrado.',
     'auth/wrong-password': 'Senha incorreta.',
     'auth/invalid-credential': 'E-mail ou senha incorretos.',
     'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
     'auth/popup-closed-by-user': 'Login cancelado.',
-    'auth/account-exists-with-different-credential': 'JÃ¡ existe conta com este e-mail usando outro mÃ©todo de login.',
+    'auth/account-exists-with-different-credential': 'Já existe conta com este e-mail usando outro método de login.',
     'auth/popup-blocked': 'Popup bloqueado pelo navegador. Permita popups para este site.',
-    'auth/network-request-failed': 'Erro de conexÃ£o. Verifique sua internet.',
-    'auth/cancelled-popup-request': 'OperaÃ§Ã£o cancelada.',
+    'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
+    'auth/cancelled-popup-request': 'Operação cancelada.',
   };
   return messages[errorCode] || `Erro: ${errorCode}`;
 }
@@ -123,7 +123,7 @@ async function saveUserToFirestore(user, extraData = {}) {
       }, { merge: true });
     }
   } catch (error) {
-    console.error('Erro ao salvar usuÃ¡rio no Firestore:', error);
+    console.error('Erro ao salvar usuário no Firestore:', error);
   }
 }
 
@@ -148,9 +148,9 @@ function showLoggedInUI(user) {
   email.textContent = user.email;
 
   const providerMap = {
-    'google.com': 'ðŸ”µ Google',
-    'github.com': 'âš« GitHub',
-    'password': 'ðŸ“§ E-mail/Senha'
+    'google.com': '🔵 Google',
+    'github.com': '⚫ GitHub',
+    'password': '📧 E-mail/Senha'
   };
   const providerId = user.providerData[0]?.providerId || 'password';
   provider.textContent = `Conectado via ${providerMap[providerId] || providerId}`;
@@ -179,7 +179,7 @@ async function handleLogin() {
     return;
   }
   if (!isValidEmail(email)) {
-    showToast('E-mail invÃ¡lido!', 'error');
+    showToast('E-mail inválido!', 'error');
     return;
   }
 
@@ -187,7 +187,7 @@ async function handleLogin() {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, pass);
     await saveUserToFirestore(userCredential.user);
-    showToast('Login realizado com sucesso! ðŸŽ®', 'success');
+    showToast('Login realizado com sucesso! 🎮', 'success');
   } catch (error) {
     showToast(getFirebaseErrorMessage(error.code), 'error');
   } finally {
@@ -208,15 +208,15 @@ async function handleRegister() {
     return;
   }
   if (!isValidEmail(email)) {
-    showToast('E-mail invÃ¡lido!', 'error');
+    showToast('E-mail inválido!', 'error');
     return;
   }
   if (pass.length < 8) {
-    showToast('A senha deve ter no mÃ­nimo 8 caracteres!', 'error');
+    showToast('A senha deve ter no mínimo 8 caracteres!', 'error');
     return;
   }
   if (pass !== confirm) {
-    showToast('As senhas nÃ£o coincidem!', 'error');
+    showToast('As senhas não coincidem!', 'error');
     return;
   }
 
@@ -230,7 +230,7 @@ async function handleRegister() {
     // Save to Firestore
     await saveUserToFirestore(userCredential.user, { displayName: name });
 
-    showToast('Conta criada com sucesso! ðŸš€', 'success');
+    showToast('Conta criada com sucesso! 🚀', 'success');
   } catch (error) {
     showToast(getFirebaseErrorMessage(error.code), 'error');
   } finally {
@@ -248,14 +248,14 @@ async function handleForgot() {
     return;
   }
   if (!isValidEmail(email)) {
-    showToast('E-mail invÃ¡lido!', 'error');
+    showToast('E-mail inválido!', 'error');
     return;
   }
 
   setLoading(btn, true);
   try {
     await sendPasswordResetEmail(auth, email);
-    showToast('Link de recuperaÃ§Ã£o enviado! ðŸ“§ Verifique seu e-mail.', 'success');
+    showToast('Link de recuperação enviado! 📧 Verifique seu e-mail.', 'success');
     setTimeout(() => showSection('loginForm'), 2000);
   } catch (error) {
     showToast(getFirebaseErrorMessage(error.code), 'error');
@@ -269,7 +269,7 @@ async function handleGoogleLogin() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     await saveUserToFirestore(result.user);
-    showToast('Login com Google realizado! ðŸŽ®', 'success');
+    showToast('Login com Google realizado! 🎮', 'success');
   } catch (error) {
     if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
       showToast(getFirebaseErrorMessage(error.code), 'error');
@@ -282,7 +282,7 @@ async function handleGithubLogin() {
   try {
     const result = await signInWithPopup(auth, githubProvider);
     await saveUserToFirestore(result.user);
-    showToast('Login com GitHub realizado! ðŸŽ®', 'success');
+    showToast('Login com GitHub realizado! 🎮', 'success');
   } catch (error) {
     if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
       showToast(getFirebaseErrorMessage(error.code), 'error');
@@ -329,4 +329,3 @@ window.handleForgot = handleForgot;
 window.handleGoogleLogin = handleGoogleLogin;
 window.handleGithubLogin = handleGithubLogin;
 window.handleLogout = handleLogout;
-
