@@ -1,4 +1,4 @@
-// =============================================
+﻿// =============================================
 // FIREBASE CONFIGURATION - Cabun
 // =============================================
 
@@ -28,3 +28,4 @@ const githubProvider = new GithubAuthProvider();
 auth.languageCode = 'pt';
 
 export { auth, db, googleProvider, githubProvider };
+
