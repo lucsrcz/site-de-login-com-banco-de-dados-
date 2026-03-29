@@ -12,24 +12,35 @@ import {
   doc,
   setDoc,
   getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
 
-// ===== PARTICLES =====
+// ===== GLOBAL STATE =====
+let allAddresses = [];
+let selectedStops = [];
+let mapsLoaded = false;
+let unsubscribeAddresses = null;
+
+// ===== UI INITIALIZATION =====
 (function createParticles() {
   const container = document.getElementById('particles');
+  if (!container) return;
   const colors = ['#8b5cf6', '#06d6e0', '#a78bfa', '#67e8f9', '#c084fc'];
   for (let i = 0; i < 30; i++) {
     const p = document.createElement('div');
     p.classList.add('particle');
     const size = Math.random() * 4 + 2;
-    const color = colors[Math.floor(Math.random() * colors.length)];
     p.style.cssText = `
-      width: ${size}px;
-      height: ${size}px;
+      width: ${size}px; height: ${size}px;
       left: ${Math.random() * 100}%;
-      background: ${color};
-      box-shadow: 0 0 ${size * 3}px ${color};
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
       animation-duration: ${Math.random() * 12 + 8}s;
       animation-delay: ${Math.random() * 10}s;
     `;
@@ -37,295 +48,406 @@ import {
   }
 })();
 
-// ===== SHOW / HIDE SECTIONS =====
+// ===== UI HELPERS =====
 function showSection(id) {
   document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
-  const section = document.getElementById(id);
-  if (section) section.classList.add('active');
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
 }
 
-// ===== TOGGLE PASSWORD VISIBILITY =====
-function togglePassword(inputId, btn) {
-  const input = document.getElementById(inputId);
-  const isPassword = input.type === 'password';
-  input.type = isPassword ? 'text' : 'password';
-  btn.innerHTML = isPassword
-    ? '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
-    : '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-}
-
-// ===== TOAST =====
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = message;
   toast.className = 'toast ' + type;
   setTimeout(() => toast.classList.add('show'), 10);
   setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
-// ===== LOADING STATE =====
-function setLoading(buttonEl, loading) {
+function setLoading(btn, loading) {
+  if (!btn) return;
   if (loading) {
-    buttonEl.dataset.originalText = buttonEl.textContent;
-    buttonEl.textContent = 'Carregando...';
-    buttonEl.disabled = true;
-    buttonEl.style.opacity = '0.7';
+    btn.dataset.text = btn.textContent;
+    btn.textContent = 'Carregando...';
+    btn.disabled = true;
   } else {
-    buttonEl.textContent = buttonEl.dataset.originalText || buttonEl.textContent;
-    buttonEl.disabled = false;
-    buttonEl.style.opacity = '1';
+    btn.textContent = btn.dataset.text || btn.textContent;
+    btn.disabled = false;
   }
 }
 
-// ===== FIREBASE ERROR MESSAGES (PT-BR) =====
-function getFirebaseErrorMessage(errorCode) {
-  const messages = {
-    'auth/email-already-in-use': 'Este e-mail já está cadastrado.',
-    'auth/invalid-email': 'E-mail inválido.',
-    'auth/weak-password': 'A senha deve ter no mínimo 6 caracteres.',
-    'auth/user-not-found': 'Usuário não encontrado.',
-    'auth/wrong-password': 'Senha incorreta.',
-    'auth/invalid-credential': 'E-mail ou senha incorretos.',
-    'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
-    'auth/popup-closed-by-user': 'Login cancelado.',
-    'auth/account-exists-with-different-credential': 'Já existe conta com este e-mail usando outro método de login.',
-    'auth/popup-blocked': 'Popup bloqueado pelo navegador. Permita popups para este site.',
-    'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
-    'auth/cancelled-popup-request': 'Operação cancelada.',
-  };
-  return messages[errorCode] || `Erro: ${errorCode}`;
+function togglePassword(id, btn) {
+  const input = document.getElementById(id);
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+  btn.innerHTML = isPass ? '👁️' : '🔒';
 }
 
-// ===== SAVE USER TO FIRESTORE =====
-async function saveUserToFirestore(user, extraData = {}) {
-  try {
-    const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) {
-      // New user - create document
-      await setDoc(userRef, {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || extraData.displayName || '',
-        photoURL: user.photoURL || '',
-        provider: user.providerData[0]?.providerId || 'email',
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-        ...extraData
-      });
-    } else {
-      // Existing user - update last login
-      await setDoc(userRef, {
-        lastLoginAt: serverTimestamp(),
-        displayName: user.displayName || userSnap.data().displayName,
-        photoURL: user.photoURL || userSnap.data().photoURL,
-      }, { merge: true });
-    }
-  } catch (error) {
-    console.error('Erro ao salvar usuário no Firestore:', error);
-  }
-}
-
-// ===== SHOW LOGGED IN UI =====
-function showLoggedInUI(user) {
-  document.getElementById('authContainer').style.display = 'none';
-  document.getElementById('loggedInContainer').style.display = 'block';
-
-  const avatar = document.getElementById('userAvatar');
-  const name = document.getElementById('userName');
-  const email = document.getElementById('userEmail');
-  const provider = document.getElementById('userProvider');
-
-  if (user.photoURL) {
-    avatar.innerHTML = `<img src="${user.photoURL}" alt="Avatar" />`;
-  } else {
-    const initials = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-    avatar.innerHTML = `<span>${initials}</span>`;
-  }
-
-  name.textContent = user.displayName || 'Jogador Cabun';
-  email.textContent = user.email;
-
-  const providerMap = {
-    'google.com': '🔵 Google',
-    'github.com': '⚫ GitHub',
-    'password': '📧 E-mail/Senha'
-  };
-  const providerId = user.providerData[0]?.providerId || 'password';
-  provider.textContent = `Conectado via ${providerMap[providerId] || providerId}`;
-}
-
-// ===== SHOW AUTH UI =====
-function showAuthUI() {
-  document.getElementById('authContainer').style.display = 'block';
-  document.getElementById('loggedInContainer').style.display = 'none';
-  showSection('loginForm');
-}
-
-// ===== EMAIL VALIDATION =====
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-// ===== LOGIN WITH EMAIL/PASSWORD =====
+// ===== AUTH ACTIONS =====
 async function handleLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const email = document.getElementById('loginEmail').value;
   const pass = document.getElementById('loginPassword').value;
   const btn = document.getElementById('btnLogin');
-
-  if (!email || !pass) {
-    showToast('Preencha todos os campos!', 'error');
-    return;
-  }
-  if (!isValidEmail(email)) {
-    showToast('E-mail inválido!', 'error');
-    return;
-  }
-
   setLoading(btn, true);
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-    await saveUserToFirestore(userCredential.user);
-    showToast('Login realizado com sucesso! 🎮', 'success');
-  } catch (error) {
-    showToast(getFirebaseErrorMessage(error.code), 'error');
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    showToast('Erro ao entrar. Verifique seus dados.', 'error');
   } finally {
     setLoading(btn, false);
   }
 }
 
-// ===== REGISTER WITH EMAIL/PASSWORD =====
 async function handleRegister() {
-  const name = document.getElementById('registerName').value.trim();
-  const email = document.getElementById('registerEmail').value.trim();
+  const name = document.getElementById('registerName').value;
+  const email = document.getElementById('registerEmail').value;
   const pass = document.getElementById('registerPassword').value;
-  const confirm = document.getElementById('registerConfirm').value;
   const btn = document.getElementById('btnRegister');
-
-  if (!name || !email || !pass || !confirm) {
-    showToast('Preencha todos os campos!', 'error');
-    return;
-  }
-  if (!isValidEmail(email)) {
-    showToast('E-mail inválido!', 'error');
-    return;
-  }
-  if (pass.length < 8) {
-    showToast('A senha deve ter no mínimo 8 caracteres!', 'error');
-    return;
-  }
-  if (pass !== confirm) {
-    showToast('As senhas não coincidem!', 'error');
-    return;
-  }
-
   setLoading(btn, true);
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-
-    // Set display name
-    await updateProfile(userCredential.user, { displayName: name });
-
-    // Save to Firestore
-    await saveUserToFirestore(userCredential.user, { displayName: name });
-
-    showToast('Conta criada com sucesso! 🚀', 'success');
-  } catch (error) {
-    showToast(getFirebaseErrorMessage(error.code), 'error');
+    const res = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(res.user, { displayName: name });
+    const ref = doc(db, 'users', res.user.uid);
+    await setDoc(ref, { uid: res.user.uid, email, displayName: name, createdAt: serverTimestamp() });
+  } catch (e) {
+    showToast('Erro ao criar conta.', 'error');
   } finally {
     setLoading(btn, false);
   }
 }
 
-// ===== FORGOT PASSWORD =====
-async function handleForgot() {
-  const email = document.getElementById('forgotEmail').value.trim();
-  const btn = document.getElementById('btnForgot');
-
-  if (!email) {
-    showToast('Informe seu e-mail!', 'error');
-    return;
-  }
-  if (!isValidEmail(email)) {
-    showToast('E-mail inválido!', 'error');
-    return;
-  }
-
-  setLoading(btn, true);
-  try {
-    await sendPasswordResetEmail(auth, email);
-    showToast('Link de recuperação enviado! 📧 Verifique seu e-mail.', 'success');
-    setTimeout(() => showSection('loginForm'), 2000);
-  } catch (error) {
-    showToast(getFirebaseErrorMessage(error.code), 'error');
-  } finally {
-    setLoading(btn, false);
-  }
-}
-
-// ===== LOGIN WITH GOOGLE =====
 async function handleGoogleLogin() {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    await saveUserToFirestore(result.user);
-    showToast('Login com Google realizado! 🎮', 'success');
-  } catch (error) {
-    if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-      showToast(getFirebaseErrorMessage(error.code), 'error');
+    const res = await signInWithPopup(auth, googleProvider);
+    const ref = doc(db, 'users', res.user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, { uid: res.user.uid, email: res.user.email, displayName: res.user.displayName, createdAt: serverTimestamp() });
     }
-  }
+  } catch (e) { console.error(e); }
 }
 
-// ===== LOGIN WITH GITHUB =====
-async function handleGithubLogin() {
-  try {
-    const result = await signInWithPopup(auth, githubProvider);
-    await saveUserToFirestore(result.user);
-    showToast('Login com GitHub realizado! 🎮', 'success');
-  } catch (error) {
-    if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-      showToast(getFirebaseErrorMessage(error.code), 'error');
-    }
-  }
-}
-
-// ===== LOGOUT =====
 async function handleLogout() {
-  try {
-    await signOut(auth);
-    showToast('Logout realizado com sucesso!', 'success');
-  } catch (error) {
-    showToast('Erro ao sair. Tente novamente.', 'error');
-  }
+  await signOut(auth);
+  if (unsubscribeAddresses) unsubscribeAddresses();
 }
 
-// ===== AUTH STATE OBSERVER =====
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    showLoggedInUI(user);
+    document.body.classList.add('is-logged-in');
+    document.getElementById('authContainer').style.display = 'none';
+    document.getElementById('loggedInContainer').style.display = 'block';
+    document.getElementById('dashboardNav').style.display = 'block';
+    const avatar = document.getElementById('navAvatar');
+    if (avatar) {
+      if (user.photoURL) avatar.innerHTML = `<img src="${user.photoURL}">`;
+      else avatar.innerHTML = `<span>${(user.displayName || user.email || 'U')[0].toUpperCase()}</span>`;
+    }
+    document.querySelectorAll('#userName').forEach(el => el.textContent = user.displayName || 'Usuário');
+    document.querySelectorAll('#userEmail').forEach(el => el.textContent = user.email);
+    loadAddresses(user.uid);
   } else {
-    showAuthUI();
+    document.body.classList.remove('is-logged-in');
+    document.getElementById('authContainer').style.display = 'block';
+    document.getElementById('loggedInContainer').style.display = 'none';
+    document.getElementById('dashboardNav').style.display = 'none';
+    showSection('loginForm');
   }
 });
 
-// ===== ENTER KEY SUPPORT =====
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    const active = document.querySelector('.form-section.active');
-    if (!active) return;
-    if (active.id === 'loginForm') handleLogin();
-    else if (active.id === 'registerForm') handleRegister();
-    else if (active.id === 'forgotForm') handleForgot();
-  }
-});
+// ===== ADDRESS MANAGEMENT =====
+function loadAddresses(uid) {
+  if (unsubscribeAddresses) unsubscribeAddresses();
+  const q = query(collection(db, 'users', uid, 'addresses'), orderBy('createdAt', 'desc'));
+  unsubscribeAddresses = onSnapshot(q, (snap) => {
+    allAddresses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAddresses(allAddresses);
+  });
+}
 
-// ===== EXPOSE FUNCTIONS TO HTML =====
+function renderAddresses(list) {
+  const el = document.getElementById('addressList');
+  if (!el) return;
+  if (list.length === 0) {
+    el.innerHTML = '<div class="empty-state">Nenhum local salvo ainda.</div>';
+    return;
+  }
+  el.innerHTML = list.map(a => `
+    <div class="address-item stacked">
+      <div class="address-info-full">
+        <span class="address-name">${a.name}</span>
+        <div class="address-link-exposed" onclick="copyToClipboard('${a.link}')">${a.link}</div>
+      </div>
+      <div class="address-actions-row">
+        <div class="btn-group-main">
+          <button class="btn-go" onclick="window.open('${a.link}', '_blank')">📍 Ir</button>
+          <button class="btn-copy-small" onclick="copyToClipboard('${a.link}')">📋 Copiar</button>
+          <button class="btn-add-route" onclick="addStopToRoute('${a.name}', '${a.link}')">➕ Incluir</button>
+        </div>
+        <div class="btn-group-edit">
+          <button class="btn-icon edit" onclick="editAddress('${a.id}')">✏️</button>
+          <button class="btn-icon delete" onclick="deleteAddress('${a.id}')">🗑️</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function handleSaveAddress() {
+  const u = auth.currentUser;
+  if (!u) return;
+  const id = document.getElementById('editAddressId').value;
+  const name = document.getElementById('addressName').value;
+  const link = document.getElementById('addressLink').value;
+  if (!name || !link) return showToast('Preencha os campos.', 'error');
+  try {
+    const colRef = collection(db, 'users', u.uid, 'addresses');
+    if (id) await updateDoc(doc(db, 'users', u.uid, 'addresses', id), { name, link });
+    else await addDoc(colRef, { name, link, createdAt: serverTimestamp() });
+    toggleAddressForm(false);
+  } catch (e) { console.error(e); }
+}
+
+async function deleteAddress(id) {
+  const u = auth.currentUser;
+  if (!u) return;
+  await deleteDoc(doc(db, 'users', u.uid, 'addresses', id));
+}
+
+function editAddress(id) {
+  const a = allAddresses.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('editAddressId').value = a.id;
+  document.getElementById('addressName').value = a.name;
+  document.getElementById('addressLink').value = a.link;
+  toggleAddressForm(true);
+}
+
+// ===== SMART ROUTE SYSTEM =====
+function loadGoogleMaps() {
+  return new Promise((resolve, reject) => {
+    if (mapsLoaded) return resolve();
+    
+    // Safety timeout to prevent silent hangs
+    const timeout = setTimeout(() => {
+      reject(new Error('Tempo de conexão com Google Maps esgotado. Verifique sua internet.'));
+    }, 8000);
+
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCwFuaNuzw50bn9CV2RnP3xTx8TNcFr6D4&libraries=places`;
+    s.async = true;
+    s.defer = true;
+    
+    s.onload = () => { 
+      clearTimeout(timeout);
+      mapsLoaded = true; 
+      resolve(); 
+    };
+    
+    s.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error('Erro crítico ao carregar Google Maps. Verifique sua chave de API.'));
+    };
+    
+    document.head.appendChild(s);
+  });
+}
+
+
+async function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject('GPS não suportado');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(`${pos.coords.latitude},${pos.coords.longitude}`),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  });
+}
+
+function addStopToRoute(name, link) {
+  if (selectedStops.some(s => s.name === name)) return showToast('Já está na rota.', 'error');
+  selectedStops.push({ name, link });
+  renderSelectedStops();
+  // Ensure planner is visible
+  document.getElementById('smartRouteBox').style.display = 'block';
+  document.querySelector('.divider').style.display = 'flex';
+  document.querySelector('.modal-content').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function removeStopFromRoute(idx) {
+  selectedStops.splice(idx, 1);
+  renderSelectedStops();
+}
+
+function renderSelectedStops() {
+  const list = document.getElementById('selectedStopsList');
+  const count = document.getElementById('stopsCount');
+  if (count) count.textContent = selectedStops.length;
+  if (!list) return;
+  list.innerHTML = selectedStops.length === 0 ? '<div class="empty-stops">Nenhuma parada ainda.</div>' : 
+    selectedStops.map((s, i) => `<div class="stop-chip"><span>${s.name}</span><button onclick="removeStopFromRoute(${i})">&times;</button></div>`).join('');
+}
+
+async function handleAddQuickStop() {
+  const name = document.getElementById('quickStopName').value.trim();
+  const link = document.getElementById('quickStopLink').value.trim();
+  const u = auth.currentUser;
+  if (!name || !link || !u) return showToast('Dados incompletos.', 'error');
+  try {
+    await addDoc(collection(db, 'users', u.uid, 'addresses'), { name, link, createdAt: serverTimestamp() });
+    addStopToRoute(name, link);
+    document.getElementById('quickStopName').value = '';
+    document.getElementById('quickStopLink').value = '';
+    showToast('Salvo e incluído!');
+  } catch (e) { console.error(e); }
+}
+
+async function generateSmartRoute() {
+  const startInput = document.getElementById('smartStart');
+  const endInput = document.getElementById('smartEnd');
+  const resultBox = document.getElementById('smartRouteResult');
+  const resultLink = document.getElementById('smartRouteLink');
+  
+  if (!endInput.value) return showToast('Ponto final é obrigatório!', 'error');
+  if (selectedStops.length === 0) return showToast('Inclua paradas primeiro.', 'error');
+
+  try {
+    showToast('Conectando ao Google Maps... 📡');
+    await loadGoogleMaps();
+    
+    // Check if GPS or manual input is used
+    let origin = startInput.value.trim();
+    if (!origin) {
+      showToast('Obtendo sua localização GPS... 🛰️');
+      try {
+        origin = await getCurrentLocation();
+      } catch (e) {
+        return showToast('Informe um ponto de partida ou ative o GPS.', 'error');
+      }
+    }
+
+    showToast('Otimizando trajeto mais rápido... 🧠');
+    const service = new google.maps.DirectionsService();
+    
+    service.route({
+      origin: origin,
+      destination: endInput.value,
+      waypoints: selectedStops.map(s => ({ location: s.name, stopover: true })),
+      optimizeWaypoints: true,
+      travelMode: 'DRIVING'
+    }, (res, status) => {
+      if (status === 'OK') {
+        const order = res.routes[0].waypoint_order;
+        const optimizedWaypoints = order.map(idx => encodeURIComponent(selectedStops[idx].name)).join('/');
+        
+        // Final Optimized Google Maps URL
+        const finalUrl = `https://www.google.com/maps/dir/${encodeURIComponent(origin)}/${optimizedWaypoints}/${encodeURIComponent(endInput.value)}`;
+        
+        if (resultLink) resultLink.href = finalUrl;
+        if (resultBox) resultBox.style.display = 'block';
+        
+        showToast('Sucesso! Rota gerada. 🚗💨');
+        
+        // Final Redirection
+        setTimeout(() => {
+          window.open(finalUrl, '_blank');
+        }, 800);
+      } else {
+        console.error('Maps API Error:', status);
+        showToast('Erro ao calcular rota. Verifique os nomes dos locais.', 'error');
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    showToast('Erro técnico ao gerar rota.', 'error');
+  }
+}
+
+// ===== NAVIGATION & MODALS =====
+function toggleAddressModal(show = null, addressesOnly = false) {
+  const m = document.getElementById('addressModal');
+  const planner = document.querySelector('.route-planner-box');
+  const divider = document.querySelector('.divider');
+  if (show === null) show = m.style.display === 'none';
+  m.style.display = show ? 'flex' : 'none';
+  if (show) {
+    if (addressesOnly) {
+      planner.style.display = 'none';
+      divider.style.display = 'none';
+    } else {
+      planner.style.display = 'block';
+      divider.style.display = 'flex';
+    }
+    document.getElementById('addressSearch').value = '';
+    handleAddressSearch('');
+  }
+}
+
+function toggleAddressForm(show = null) {
+  const f = document.getElementById('addressForm');
+  const listArea = document.querySelector('.address-list-area');
+  const searchBox = document.querySelector('.search-box');
+  if (show === null) show = f.style.display === 'none';
+  f.style.display = show ? 'block' : 'none';
+  listArea.style.display = show ? 'none' : 'block';
+  searchBox.style.display = show ? 'none' : 'block';
+  if (!show) {
+    document.getElementById('editAddressId').value = '';
+    f.reset();
+  }
+}
+
+function handleAddressSearch(val) {
+  const filtered = allAddresses.filter(a => a.name.toLowerCase().includes(val.toLowerCase()));
+  renderAddresses(filtered);
+}
+
+function handleAddressNameInput(val) {
+  const listArea = document.querySelector('.address-list-area');
+  if (!val) { listArea.style.display = 'none'; return; }
+  const duplicate = allAddresses.filter(a => a.name.toLowerCase().includes(val.toLowerCase()));
+  if (duplicate.length > 0) {
+    listArea.style.display = 'block';
+    renderAddresses(duplicate);
+  } else {
+    listArea.style.display = 'none';
+  }
+}
+
+function toggleProfileMenu() {
+  const d = document.getElementById('profileDropdown');
+  d.style.display = d.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleMobileMenu() {
+  document.getElementById('navMenu').classList.toggle('active');
+}
+
+async function copyToClipboard(txt) {
+  await navigator.clipboard.writeText(txt);
+  showToast('Copiado! 📋');
+}
+
+// ===== GLOBAL EXPOSURE =====
 window.showSection = showSection;
 window.togglePassword = togglePassword;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
-window.handleForgot = handleForgot;
 window.handleGoogleLogin = handleGoogleLogin;
-window.handleGithubLogin = handleGithubLogin;
 window.handleLogout = handleLogout;
+window.toggleProfileMenu = toggleProfileMenu;
+window.toggleAddressModal = toggleAddressModal;
+window.toggleAddressForm = toggleAddressForm;
+window.handleSaveAddress = handleSaveAddress;
+window.editAddress = editAddress;
+window.deleteAddress = deleteAddress;
+window.toggleMobileMenu = toggleMobileMenu;
+window.copyToClipboard = copyToClipboard;
+window.handleAddressSearch = handleAddressSearch;
+window.handleAddressNameInput = handleAddressNameInput;
+window.addStopToRoute = addStopToRoute;
+window.removeStopFromRoute = removeStopFromRoute;
+window.handleAddQuickStop = handleAddQuickStop;
+window.generateSmartRoute = generateSmartRoute;
